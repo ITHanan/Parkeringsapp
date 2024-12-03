@@ -1,14 +1,20 @@
 ﻿using System;
 using System.Collections.Generic;
+using System.Text.Json;
 
 class ParkingApp
 {
+    static string filePath = "parkingData.json";
+
     static Dictionary<int, ParkingSession> activeParkings = new Dictionary<int, ParkingSession>();
     static List<ParkingSession> parkingHistory = new List<ParkingSession>();
     static decimal hourlyRate = 20m; // Timtaxa (kr/timme)
 
     static void Main()
     {
+
+        LoadData(); // Ladda data från JSON-fil vid start
+
         while (true)
         {
             Console.WriteLine("\nParkeringsapp");
@@ -32,6 +38,7 @@ class ParkingApp
                     ShowHistory();
                     break;
                 case "4":
+                    SaveData(); // Spara data till JSON-fil innan avslut
                     return;
                 default:
                     Console.WriteLine("Ogiltigt val, försök igen.");
@@ -50,6 +57,10 @@ class ParkingApp
 
         activeParkings[id] = session; // Lägg till den i aktiva parkeringar
         Console.WriteLine($"Parkering startad med ID {id} på plats {location} vid {session.StartTime}.");
+
+        SaveData();
+
+
     }
 
     static void StopParking()
@@ -71,6 +82,9 @@ class ParkingApp
         {
             Console.WriteLine("Parkering med det ID:t hittades inte.");
         }
+        SaveData();
+
+
     }
 
     static void ShowHistory()
@@ -87,7 +101,84 @@ class ParkingApp
         TimeSpan duration = end - start;
         double hours = duration.TotalHours;
         return (decimal)hours * hourlyRate;
+
     }
+
+
+   public static void SaveData()
+    {
+        try
+        {
+            var data = new
+            {
+                ActiveParkings = activeParkings,
+                ParkingHistory = parkingHistory
+            };
+
+            string dataJsonFilePath = "parkingData.json";
+
+            string json = JsonSerializer.Serialize(data, new JsonSerializerOptions { WriteIndented = true });
+            File.WriteAllText(dataJsonFilePath, json);
+
+            MirrorChangesToProjectRoot("parkingData.json");
+
+
+            Console.WriteLine("Data sparad till fil.");
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Fel vid sparning av data: {ex.Message}");
+        }
+
+    }
+
+    static void LoadData()
+    {
+        try
+        {
+            if (File.Exists(filePath))
+            {
+                string json = File.ReadAllText(filePath);
+                var data = JsonSerializer.Deserialize<ParkingData>(json);
+
+                if (data != null)
+                {
+                    activeParkings = data.ActiveParkings;
+                    parkingHistory = data.ParkingHistory;
+                    Console.WriteLine("Data laddad från fil.");
+                }
+            }
+        }
+        catch (Exception ex)
+        {
+            Console.WriteLine($"Fel vid laddning av data: {ex.Message}");
+        }
+    }
+
+    static void MirrorChangesToProjectRoot(string fileName)
+    {
+        // Get the path to the output directory
+        string outputDir = AppDomain.CurrentDomain.BaseDirectory;
+
+        // Get the path to the project root directory
+        string projectRootDir = Path.Combine(outputDir, "../../../");
+
+        // Define paths for the source (output directory) and destination (project root)
+        string sourceFilePath = Path.Combine(outputDir, fileName);
+        string destFilePath = Path.Combine(projectRootDir, fileName);
+
+        // Copy the file if it exists
+        if (File.Exists(sourceFilePath))
+        {
+            File.Copy(sourceFilePath, destFilePath, true); // true to overwrite
+            Console.WriteLine($"{fileName} has been mirrored to the project root.");
+        }
+        else
+        {
+            Console.WriteLine($"Source file {fileName} not found.");
+        }
+    }
+
 }
 class ParkingSession
 {
@@ -105,4 +196,14 @@ class ParkingSession
         EndTime = null;
         Cost = 0;
     }
+
+
+
+}
+
+
+class ParkingData
+{
+    public Dictionary<int, ParkingSession> ActiveParkings { get; set; }
+    public List<ParkingSession> ParkingHistory { get; set; }
 }
