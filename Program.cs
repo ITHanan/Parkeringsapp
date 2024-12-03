@@ -1,5 +1,5 @@
-﻿using System;
-using System.Collections.Generic;
+﻿using Figgle;
+using Spectre.Console;
 using System.Text.Json;
 
 class ParkingApp
@@ -17,84 +17,194 @@ class ParkingApp
 
         while (true)
         {
-            Console.WriteLine("\nParkeringsapp");
-            Console.WriteLine("1. Starta parkering");
-            Console.WriteLine("2. Avbryt parkering");
-            Console.WriteLine("3. Visa historik");
-            Console.WriteLine("4. Avsluta");
+            Console.Clear();
 
-            Console.Write("Välj ett alternativ: ");
-            string choice = Console.ReadLine()!;
+            // ASCII Art for Header
+            Console.WriteLine(FiggleFonts.Standard.Render("Parking App"));
 
-            switch (choice)
+            // Styled Menu using Spectre.Console
+            AnsiConsole.Markup("[bold yellow]Choose an option:[/]\n");
+            string choice = AnsiConsole.Prompt(
+                new SelectionPrompt<string>()
+                    .Title("[bold cyan]What would you like to do?[/]")
+                    .PageSize(4)
+                    .AddChoices(new[]
+                    {
+                        "1. Start Parking",
+                        "2. Stop Parking",
+                        "3. Show History",
+                        "4. Exit"
+                    }));
+
+            switch (choice[0]) // Extract the number from the choice (e.g., "1. Start Parking")
             {
-                case "1":
+                case '1':
                     StartParking();
                     break;
-                case "2":
+                case '2':
                     StopParking();
                     break;
-                case "3":
+                case '3':
                     ShowHistory();
                     break;
-                case "4":
-                    SaveData(); // Spara data till JSON-fil innan avslut
+                case '4':
+                    SaveData();
+                    AnsiConsole.Markup("[bold green]Thank you for using the Parking App![/]\n");
                     return;
                 default:
-                    Console.WriteLine("Ogiltigt val, försök igen.");
+                    AnsiConsole.Markup("[bold red]Invalid choice, please try again.[/]\n");
                     break;
             }
+
+            // Wait for user to press a key before returning to menu
+            AnsiConsole.Markup("[grey italic](Press any key to continue...)[/]");
+            Console.ReadKey();
         }
     }
 
     static void StartParking()
     {
-        Console.Write("Ange parkeringsplats: ");
+        Console.Clear();
+        AnsiConsole.Markup("[bold green]Start Parking[/]\n");
+        AnsiConsole.Markup("[bold yellow]Please enter the parking Location:[/] ");
+
+
+
         string location = Console.ReadLine()!;
 
         int id = new Random().Next(1000, 9999); // Generera ett unikt ID
         ParkingSession session = new ParkingSession(id, location);
 
         activeParkings[id] = session; // Lägg till den i aktiva parkeringar
-        Console.WriteLine($"Parkering startad med ID {id} på plats {location} vid {session.StartTime}.");
+        AnsiConsole.Markup($"[bold yellow]Parking started with the ID {id} in  {location} on  {session.StartTime}.![/]\n");
+
 
         SaveData();
+
 
 
     }
 
     static void StopParking()
     {
-        Console.Write("Ange parkerings-ID: ");
+        Console.Clear();
+
+        // Figgle ASCII header
+        Console.WriteLine(FiggleFonts.Standard.Render("Stop Parking"));
+
+        // Displaying the action message with styling
+        AnsiConsole.Markup("[bold red]Stop Parking[/]\n");
+
+        // Show active parkings
+        ActiveParkings();
+
+        // Prompt for Parking ID
+        AnsiConsole.Markup("[bold cyan]Enter Parking ID:[/]");
         int id = int.Parse(Console.ReadLine()!);
 
         if (activeParkings.TryGetValue(id, out ParkingSession session))
         {
+            // Set the end time and calculate the cost
             session.EndTime = DateTime.Now;
             session.Cost = CalculateCost(session.StartTime, session.EndTime.Value);
 
-            activeParkings.Remove(id); // Ta bort från aktiva parkeringar
-            parkingHistory.Add(session); // Flytta till historiken
+            // Move the session to history and remove it from active parkings
+            activeParkings.Remove(id); // Remove from active parkings
+            parkingHistory.Add(session); // Add to history
 
-            Console.WriteLine($"Parkering avslutad. Kostnad: {session.Cost} kr. Varaktighet: {(session.EndTime.Value - session.StartTime).TotalMinutes:F1} minuter.");
+            // Provide feedback on successful parking stop
+            AnsiConsole.Markup($"[bold yellow]Parking completed. Cost: {session.Cost:F2} SEK. Duration: {(session.EndTime.Value - session.StartTime).TotalMinutes:F1} minutes.[/]\n");
+            AnsiConsole.Markup("[bold yellow]Parking stopped![/]\n");
         }
         else
         {
-            Console.WriteLine("Parkering med det ID:t hittades inte.");
+            // Provide feedback when the parking ID is not found
+            AnsiConsole.Markup("[bold red]Parking with that ID not found.[/]\n");
         }
+
+        // Save the updated data
         SaveData();
-
-
     }
 
+
+    static void ActiveParkings()
+    {
+        Console.Clear();
+
+        // Figgle ASCII header
+        Console.WriteLine(FiggleFonts.Standard.Render("Active Parkings"));
+
+        // Check if there are active parking sessions
+        if (activeParkings == null || activeParkings.Count == 0)
+        {
+            AnsiConsole.Markup("[bold red]No active parking sessions found![/]\n");
+            return;
+        }
+
+        // Create a table to display active parking sessions
+        var table = new Table();
+        table.Border = TableBorder.Rounded;
+        table.AddColumn("[bold cyan]ID[/]");
+        table.AddColumn("[bold cyan]Location[/]");
+        table.AddColumn("[bold cyan]Start Time[/]");
+
+        // Add rows for each active session
+        foreach (var session in activeParkings.Values)
+        {
+            table.AddRow(
+                session.Id.ToString(),
+                session.Location,
+                session.StartTime.ToString("yyyy-MM-dd HH:mm")
+            );
+        }
+
+        // Render the table
+        AnsiConsole.Write(table);
+
+    }
     static void ShowHistory()
     {
-        Console.WriteLine("\nParkeringshistorik:");
+        Console.Clear();
+
+        // Display ASCII header
+        Console.WriteLine(FiggleFonts.Standard.Render("Parking History"));
+
+        // Check if there is any history
+        if (parkingHistory.Count == 0)
+        {
+            AnsiConsole.Markup("[bold red]No parking history available![/]\n");
+            return;
+        }
+
+        // Create a Spectre Console Table
+        var table = new Table();
+        table.Border = TableBorder.Rounded;
+        table.AddColumn("[bold cyan]ID[/]");
+        table.AddColumn("[bold cyan]Location[/]");
+        table.AddColumn("[bold cyan]Start Time[/]");
+        table.AddColumn("[bold cyan]End Time[/]");
+        table.AddColumn("[bold cyan]Cost (SEK)[/]");
+
+        // Populate the table with parking history
         foreach (var session in parkingHistory)
         {
-            Console.WriteLine($"ID: {session.Id}, Plats: {session.Location}, Start: {session.StartTime}, Slut: {session.EndTime}, Kostnad: {session.Cost} kr");
+            table.AddRow(
+                session.Id.ToString(),
+                session.Location,
+                session.StartTime.ToString("yyyy-MM-dd HH:mm"),
+                session.EndTime.HasValue
+              ? session.EndTime.Value.ToString("yyyy-MM-dd HH:mm"):"N/A",
+                $"{session.Cost:F2}"
+            );
         }
+
+        // Render the table
+        AnsiConsole.Write(table);
     }
+
+
+   
+
 
     static decimal CalculateCost(DateTime start, DateTime end)
     {
@@ -105,8 +215,10 @@ class ParkingApp
     }
 
 
-   public static void SaveData()
+    public static void SaveData()
     {
+        Console.Clear();
+        AnsiConsole.Markup("[bold green]Saving data...[/]\n");
         try
         {
             var data = new
@@ -123,11 +235,11 @@ class ParkingApp
             MirrorChangesToProjectRoot("parkingData.json");
 
 
-            Console.WriteLine("Data sparad till fil.");
+            AnsiConsole.Markup("[bold yellow]Data saved![/]\n");
         }
         catch (Exception ex)
         {
-            Console.WriteLine($"Fel vid sparning av data: {ex.Message}");
+            Console.WriteLine($"Error with the saving of the data : {ex.Message}");
         }
 
     }
