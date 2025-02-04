@@ -134,7 +134,7 @@ This project is licensed under the **MIT License**. See the [LICENSE](LICENSE) f
 For questions, feedback, or collaboration, feel free to reach out:
 - **Author**: Hanan Ahmed
 - **Email**: ithanan@gmail.com
-- **GitHub**: [Your GitHub Profile](https://github.com/your-username)
+- **GitHub**: [Your GitHub Profile](https://github.com/ITHanan)
 
 ---
 
